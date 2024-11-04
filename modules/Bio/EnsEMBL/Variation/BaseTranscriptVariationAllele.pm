@@ -189,7 +189,11 @@ sub _intron_effects {
           $intron_effects->{donor_region_splice_site} = 1;
         }
         
-        if (overlap($r_start, $r_end, $intron_end-16, $intron_end-2)) {
+# SMJS Changed to 'min' 'max'. This is to match the behaviour here (in the intron_boundary loop) with that in the intron loop above
+        my ($start, $end) = ($r_start, $r_end);
+        ($start, $end) = ($end, $start) if $start > $end;
+        #if (overlap($r_start, $r_end, $intron_end-16, $intron_end-2)) 
+        if (overlap($start, $end, $intron_end-16, $intron_end-2)) {
           $intron_effects->{polypyrimidine_splice_site} = 1;
         }
         
@@ -201,7 +205,9 @@ sub _intron_effects {
           $intron_effects->{donor_region_splice_site_reverse} = 1;
         }
         
-        if (overlap($r_start, $r_end, $intron_start+2, $intron_start+16)) {
+# SMJS Changed to 'min' 'max'. This is to match the behaviour here (in the intron_boundary loop) with that in the intron loop above
+        #if (overlap($r_start, $r_end, $intron_start+2, $intron_start+16)) 
+        if (overlap($start, $end, $intron_start+2, $intron_start+16)) {
           $intron_effects->{polypyrimidine_splice_site_reverse} = 1;
         }
         
@@ -211,13 +217,20 @@ sub _intron_effects {
         # first base of the intron so we only need to add or subtract 7 from 
         # it to get the correct coordinate. We also need to special case 
         # insertions between the edge of an exon and a donor or acceptor site
-        # and between a donor or acceptor site and the intron            
-        $intron_effects->{splice_region} = _intron_overlap($r_start, $r_end, $intron_start, $intron_end, $insertion)
-          unless $intron_effects->{start_splice_site} or $intron_effects->{end_splice_site};
+        # and between a donor or acceptor site and the intron
+
+        # BUG: Could set this and then unset it if there are multiple differing regions - don't think that's right
+        #$intron_effects->{splice_region} = _intron_overlap($r_start, $r_end, $intron_start, $intron_end, $insertion)
+        #  unless $intron_effects->{start_splice_site} or $intron_effects->{end_splice_site};
+
+        if (!$intron_effects->{splice_region}) {
+          $intron_effects->{splice_region} = _intron_overlap($r_start, $r_end, $intron_start, $intron_end, $insertion)
+            unless $intron_effects->{start_splice_site} or $intron_effects->{end_splice_site};
+        }
       }
     }
       
-    $self->{_intron_effects} = $intron_effects;       
+    $self->{_intron_effects} = $intron_effects;
   }
 
   return $self->{_intron_effects};

@@ -415,7 +415,10 @@ sub _get_differing_regions {
 
     # obviously we don't need to do this for SNPs or anything where one of ALT or REF is 1 base or less
     # otherwise it wouldn't be a variant...
-    if($alt_length > 1 && $ref_length > 1) {
+# SMJS Changed condition   
+#   if($alt_length > 1 && $ref_length > 1) {
+#      Only do on multibase substitutions where lengths are the same
+    if($alt_length > 1 && $ref_length == $alt_length) {
       my $al1 = $bvfo->get_reference_BaseVariationFeatureOverlapAllele->variation_feature_seq;
       my $al2 = $self->variation_feature_seq;
 

@@ -175,7 +175,10 @@ my $vf2_name = 'rs2299222';
   $vfa->db->include_failed_variations(0);
   my $vfs2 = $vfa->fetch_all();
   cmp_ok(scalar @$vfs2, "==", 1296, "vf by all - count (-failed)");
-  cmp_ok($vfs2->[0]->variation_name(), "eq", $vf2_name, "vf by all - check first variation name");
+
+# SMJS There is no guarantee that the data will be returned in insert order, which
+#      seems to be what this test expects - remove test
+#  cmp_ok($vfs2->[0]->variation_name(), "eq", $vf2_name, "vf by all - check first variation name");
 
   #test fetch all with inc failed my $vf_nameF='rs111067473';
   $vfa->db->include_failed_variations(1);
@@ -186,7 +189,10 @@ my $vf2_name = 'rs2299222';
 # test fetch all somatic
 print "\n# Test - fetch_all_somatic\n";
 my $vfs3 = $vfa->fetch_all_somatic();
-ok($vfs3->[0]->variation_name() eq $vf_somatic_name, "vf by all somatic");
+cmp_ok(scalar @$vfs3, "==", 2, "vf by all somatic - count");
+# SMJS There is no guarantee that the data will be returned in insert order, which
+#      seems to be what this test expects - remove test
+#cmp_ok($vfs3->[0]->variation_name(), "eq", $vf_somatic_name, "vf by all somatic");
 
 
 ## Slice ##
@@ -366,8 +372,18 @@ ok(scalar @{$vfa->fetch_all_by_location_identifier('18:40228819:A_G')} == 1, "fe
 # test fetch Iterator
 print "\n# Test - fetch_Iterator\n";
 my $vfs17 = $vfa->fetch_Iterator();
-ok($vfs17->next()->variation_name eq $vf2_name, 'vf fetch_Iterator');
+# SMJS There is no guarantee that the data will be returned in insert order, which
+#      seems to be what this test expects - remove test
+#cmp_ok($vfs17->next()->variation_name, "eq", $vf2_name, 'vf fetch_Iterator');
 
+# SMJS Added new test which checks that the right number of features
+#      are returned by the iterator fetch
+my $cnt_vfs17 = 0;
+while ($vfs17->has_next()) {
+  my $var = $vfs17->next();
+  $cnt_vfs17++;
+}
+cmp_ok($cnt_vfs17, "==", 1305,'vf fetch_Iterator count');
 
 # test list dbIDs
 print "\n# Test - list_dbIDs\n";

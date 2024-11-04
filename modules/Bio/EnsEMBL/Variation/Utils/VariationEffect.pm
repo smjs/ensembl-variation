@@ -864,7 +864,7 @@ sub start_lost {
         $bvfo ||= $bvfoa->base_variation_feature_overlap;
         $feat ||= $bvfo->feature;
         $bvf  ||= $bvfo->base_variation_feature;
-        
+
         # sequence variant
         if($bvfo->isa('Bio::EnsEMBL::Variation::TranscriptVariation')) {
             return $cache->{start_lost} = 1 if _ins_del_start_altered(@_) && !(inframe_insertion(@_) || inframe_deletion(@_));
@@ -872,7 +872,7 @@ sub start_lost {
             my ($ref_pep, $alt_pep) = _get_peptide_alleles(@_);
         
             return 0 unless $ref_pep;
-            return 0 unless $alt_pep && $alt_pep ne 'X';
+            return 0 unless defined($alt_pep) && $alt_pep ne 'X';
             
             # allow for introducing additional bases that retain start codon e.g. atg -> aCGAtg
             $cache->{start_lost} = (
@@ -974,6 +974,29 @@ sub _overlaps_start_codon {
 
         my ($cdna_start, $cdna_end) = ($bvfo->cdna_start_unshifted, $bvfo->cdna_end_unshifted);
         my $shifting_offset = defined($bvfoa->{shift_hash}) ? $bvfoa->{shift_hash}->{shift_length} : 0;
+
+# SMJS Would like to add this code to make overlaps_start_codon work correctly when
+#      the start codon is overlapped, but the cdna coords come out undefined either because
+#      either end lies either in an intron or up/down stream of the transcript. 
+#      However fixing this causes some consequences to become incorrect, because other predicates rely on the 
+#      buggy behaviour here.
+#    my $cdna_coords = $bvfo->cdna_coords;
+#    
+#    if (@$cdna_coords > 0) {
+#        for my $coord (@$cdna_coords) {
+#            if ($coord->isa('Bio::EnsEMBL::Mapper::Coordinate')) {
+#                $cdna_start = $coord->start;
+#                last;
+#            }
+#        }
+#        for my $coord (reverse @$cdna_coords) {
+#            if ($coord->isa('Bio::EnsEMBL::Mapper::Coordinate')) {
+#                $cdna_end = $coord->end;
+#                last;
+#            }
+#        }
+#    }
+
         $cdna_start += $shifting_offset;
         $cdna_end += $shifting_offset;
         return 0 unless $cdna_start && $cdna_end;
@@ -990,19 +1013,31 @@ sub _overlaps_start_codon {
 sub _snp_start_altered {
     my ($bvfoa, $feat, $bvfo, $bvf) = @_;
 
+# Default for cache value is true, so the 'return 0' statements below meant
+# results returned from this method could be inconsistent
+# First time in cache will be set to true, but return false. Next time in
+# cache value will be returned which is true !
+
     my $cache = $bvfoa->{_predicate_cache} ||= {};
 
     unless(exists($cache->{snp_start_altered})) {
         $cache->{snp_start_altered} = 1;
 
-        return 0 if $bvfoa->isa('Bio::EnsEMBL::Variation::TranscriptStructuralVariationAllele');
-        return 0 unless $bvfoa->seq_is_unambiguous_dna();
+# Changed these two to return 1 (as would be returned using the cache by a subsequent call to this function)
+#        return 0 if $bvfoa->isa('Bio::EnsEMBL::Variation::TranscriptStructuralVariationAllele');
+#        return 0 unless $bvfoa->seq_is_unambiguous_dna();
+        return 1 if $bvfoa->isa('Bio::EnsEMBL::Variation::TranscriptStructuralVariationAllele');
+        return 1 unless $bvfoa->seq_is_unambiguous_dna();
 
         $bvfo ||= $bvfoa->base_variation_feature_overlap;
 
         # get cDNA coords
         my ($cdna_start, $cdna_end) = ($bvfo->cdna_start, $bvfo->cdna_end);
-        return 0 unless $cdna_start && $cdna_end;
+
+# Changed this to return 1 (as would be returned using the cache by a subsequent call to this function)
+#        return 0 unless $cdna_start && $cdna_end;
+        return 1 unless $cdna_start && $cdna_end;
+
 
         # make and edit UTR + translateable seq
         my $translateable = $bvfo->_translateable_seq();
@@ -1017,6 +1052,7 @@ sub _snp_start_altered {
         # get the aa now in place of prevoius start codon and see it is ATG
         # it can happen for non-ATG variant (e.g - gene WT1, transcript ENST00000332351)
         my $aa_replacing_start_codon = substr($utr_and_translateable, 0 - length($translateable), 3);
+
         $cache->{snp_start_altered} = 0 if $aa_replacing_start_codon eq "ATG";
     }
 
@@ -1058,10 +1094,12 @@ sub _ins_del_start_altered {
         # check if still retain start
         if ($utr) {
             my $atg_start = length($utr->seq);
-            my $new_sc = substr($utr_and_translateable, $atg_start, 3);
-            my $new_utr = substr($utr_and_translateable, 0, length($utr->seq));
+            if ($atg_start <= length($utr_and_translateable)) {
+              my $new_sc = substr($utr_and_translateable, $atg_start, 3);
+              my $new_utr = substr($utr_and_translateable, 0, length($utr->seq));
 
-            return $cache->{ins_del_start_altered} if ($new_utr eq $utr->seq && $new_sc eq 'ATG');
+              return $cache->{ins_del_start_altered} if ($new_utr eq $utr->seq && $new_sc eq 'ATG');
+            }
         }
 
         # sequence shorter, we know it has been altered
@@ -1239,6 +1277,9 @@ sub stop_lost {
         $bvf  ||= $bvfo->base_variation_feature;
         $feat ||= $bvfo->feature;
         
+# SMJS Added 
+        return 0 if grep {$_->code eq 'cds_end_NF'} @{$feat->get_all_Attributes()};
+
         # sequence variant
         if($bvfoa->isa('Bio::EnsEMBL::Variation::TranscriptVariationAllele')) {
             
@@ -1290,14 +1331,18 @@ sub stop_retained {
     return 0 if stop_lost(@_);
 
     unless(exists($cache->{stop_retained})) {
-        $bvfo ||= $bvfoa->base_variation_feature_overlap;
-        $bvf  ||= $bvfo->base_variation_feature;
-        # structural variants don't have an allele string
-        return 0 if ($bvf->allele_string && ($bvf->allele_string eq 'COSMIC_MUTATION' || $bvf->allele_string eq 'HGMD_MUTATION'));
-
         $cache->{stop_retained} = 0;
 
         $bvfo ||= $bvfoa->base_variation_feature_overlap;
+        $bvf  ||= $bvfo->base_variation_feature;
+        $feat ||= $bvfo->feature;
+
+        # structural variants don't have an allele string
+        return 0 if ($bvf->allele_string && ($bvf->allele_string eq 'COSMIC_MUTATION' || $bvf->allele_string eq 'HGMD_MUTATION'));
+
+
+# SMJS Added 
+        return 0 if grep {$_->code eq 'cds_end_NF'} @{$feat->get_all_Attributes()};
 
         my $pre = $bvfoa->_pre_consequence_predicates;
 
@@ -1306,7 +1351,7 @@ sub stop_retained {
         if(defined($alt_pep) && $alt_pep ne '') {
          
           ## handle inframe insertion of a stop just before the stop (no ref peptide)
-          $cache->{stop_retained} = ref_eq_alt_sequence(@_);
+          $cache->{stop_retained} = stop_retained_checks(@_);
         }
         else {
             $cache->{stop_retained} = ($pre->{increase_length} || $pre->{decrease_length}) && _overlaps_stop_codon(@_) && !_ins_del_stop_altered(@_);
@@ -1316,6 +1361,100 @@ sub stop_retained {
     
     return $cache->{stop_retained};
 }
+
+sub stop_retained_checks {
+  my ($bvfoa, $feat, $bvfo, $bvf) = @_; 
+   
+  my $dbg = 0;
+
+  $bvfo ||= $bvfoa->base_variation_feature_overlap;
+  my $ref_seq = $bvfo->_peptide;
+
+  $bvf ||= $bvfoa->base_variation_feature;
+  if ($dbg == 1) {
+    print "In stop_retained_checks with transcript " . $bvfo->transcript->stable_id . " and variant " . $bvf->variation_name . "\n";
+  }
+
+  if ($bvfoa->isa('Bio::EnsEMBL::Variation::VariationFeatureOverlapAllele')) {
+    $feat ||= $bvfo->feature;
+
+    my $trans = $feat;
+    my $vfoa = $bvfoa;
+
+    my $stop_pos = $trans->strand == 1 ? $trans->coding_region_end : $trans->coding_region_start;
+
+    if ($dbg == 1) {
+      printf("Checking start = %ld start+len =  %ld (len = %ld) against stop_pos = %ld\n",$bvf->start, $bvf->start + $vfoa->seq_length , $vfoa->seq_length, $stop_pos);
+      printf("Trans strand = %d coding region start = %ld coding region end = %ld\n",$trans->strand, $trans->coding_region_start, $trans->coding_region_end);
+      printf("$bvf->strand = %d\n",$bvf->strand);
+    }
+
+    # Constrain any checking to cases where the change is near to the end of the CDS
+    # ref_eq_alt_sequence didn't constrain the position which led to over-calling of stop_retained
+    # I do not know the specific cases that ref_eq_alt_sequence was trying to fix, so it's
+    # difficult to address the problems that it has.
+    if (($trans->strand == 1 && $bvf->end < $stop_pos-6) ||
+        ($trans->strand == -1 && $bvf->start > $stop_pos+6)) {
+       if ($dbg == 1) {
+         print "Rejecting\n";
+       }
+       return 0;
+    }
+  }
+
+   my $mut_seq = $ref_seq;
+   my $tl_start = $bvfo->translation_start;
+   my $tl_end = $bvfo->translation_end;
+
+   if ($dbg == 1) {
+     print "tl_start = $tl_start tl_end = $tl_end\n";
+   }
+   
+   my ($ref_pep, $alt_pep) = _get_peptide_alleles(@_);
+
+   return 0 if $ref_pep eq "X" && $alt_pep eq "X"; # this is to account for incomplete coding terminal;
+
+   # this is a logic which used to be used in start_retained function
+   return 1 if ($bvfoa->isa('Bio::EnsEMBL::Variation::TranscriptVariationAllele') && defined($ref_seq) && $tl_start > length($ref_seq) && $alt_pep =~ /^\*/);
+
+   substr($mut_seq, $tl_start-1, $tl_end - $tl_start + 1) = $alt_pep; # creating a mutated sequence from the ref sequence. 
+
+   if ($dbg == 1) {
+     print "Peps[REF] = $ref_pep\n";
+     print "Peps[ALT] = $alt_pep\n";
+     print "lenMutSeq = " . length($mut_seq) . "\n";
+     print "For " . $bvfo->transcript->stable_id . " mut_seq = $mut_seq\n";
+   }
+
+   # getting a substring up to the length of the ref sequence for comparison from index 0 to the length of the ref seq;
+   my $mut_substring = substr($mut_seq, 0, length($ref_seq)); 
+   
+   # getting the length of the $mut_seq from the length of the ref_seq to the end 
+   my $final_stop = substr($mut_seq, length($ref_seq)) if length($ref_seq) < length($mut_seq); 
+   
+   my $final_stop_length = length($final_stop) if defined($final_stop) ne '';
+
+   if ($dbg == 1) {
+     print "final_stop_length = $final_stop_length\n";
+     print "final_stop = $final_stop\n";
+     print "mut_substring = $mut_substring\n";
+
+     print "Summary result of ref_eq_alt_sequence final conditions: " . 
+            (($ref_pep eq substr($alt_pep, 0, 1) && $alt_pep =~ /\*/) ? "true" : "false") . " " .
+            (($ref_seq eq $mut_substring && defined($final_stop_length) && $final_stop_length < 3 && $alt_pep !~ /X/) ?  "true" : "false" ) . " " .
+            (( $ref_pep =~ /\*/ && (index($ref_pep, "*") + 1 == index($alt_pep, "*") + 1) ) ? "true" : "false") . "\n";
+   }
+   
+   # 1 is if the ref_pep and the first letter of the alt_pep is the same and the alt_pep has * in it 
+   # 2 is the ref_seq eq $mut_substring and the final stop length is less than 3 
+   #   SMJS For 2 added check for alt_pep not having 'X'
+   # 3 is * in ref_pep and the same index position exists for both the ref and alt pep
+   return 1 if ( ($ref_pep eq substr($alt_pep, 0, 1) && $alt_pep =~ /\*/) ||
+               ( $ref_seq eq $mut_substring && defined($final_stop_length) && $final_stop_length < 3 && $alt_pep !~ /X/) || 
+               ( $ref_pep =~ /\*/ && (index($ref_pep, "*") + 1 == index($alt_pep, "*") + 1) ));
+   return 0;
+}
+
 
 sub ref_eq_alt_sequence {
    my ($bvfoa, $feat, $bvfo, $bvf) = @_; 

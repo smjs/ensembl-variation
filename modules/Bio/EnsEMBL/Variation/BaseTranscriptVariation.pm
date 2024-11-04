@@ -858,12 +858,47 @@ sub _overlapped_exons {
     # apply a "stretch" to the exon coordinates if we have a frameshift intron
     # the introns can be up to 12 bases long and if a variant falls in one
     # we actually want to call it exonic
+
+# SMJS stretch caused misses of polypyrimidine consequences in intron because 'exon' pre was set for variant which
+#      lay inside a real intron. Need to test whether the variant is actually in a frameshift intron.
+#      Can do that once we have the 'overlapped' exons.
     my $stretch = $self->transcript->{_variation_effect_feature_cache}->{_has_frameshift_intron} ? 12 : 0;
 
-    $self->{_overlapped_exons} = 
+    my $exons = 
       $CAN_USE_INTERVAL_TREE ?
       $self->_exon_interval_tree->fetch($min_vf - ($stretch + 1), $max_vf + $stretch) :
       $self->_overlapped_exons_no_tree($min_vf, $max_vf, $stretch);
+
+# SMJS Added
+    if ($stretch) {
+      my @overlapped;
+      for my $exon (@$exons) {
+        if (overlap($min_vf, $max_vf, $exon->{start}, $exon->{end})) {
+          push @overlapped, $exon;
+        } else {
+# Need to check if this exon is next to a frameshift intron which is
+# part of the overlap
+          my $matched = 0;
+          if ($exon->{start} > $min_vf) {
+            my $introns = $self->_overlapped_introns($exon->{start}-1, $exon->{start}-1);
+            if (scalar(@$introns) && $introns->[0]->{_frameshift}) {
+              push @overlapped,$exon;
+              $matched = 1;
+            }
+          }
+          if (!$matched && $exon->{end} < $max_vf) {
+            my $introns = $self->_overlapped_introns($exon->{end}+1, $exon->{end}+1);
+            if (scalar(@$introns) && $introns->[0]->{_frameshift}) {
+              push @overlapped,$exon;
+            }
+          }
+        }
+      }
+      $exons = \@overlapped;
+    }
+
+
+    $self->{_overlapped_exons} = $exons;
   }
 
   return $self->{_overlapped_exons};
@@ -1025,8 +1060,14 @@ sub _create_intron_trees {
     # starts adjusted by -1 to account for 0-based coords in interval tree
 
     $intron_tree->insert($intron, $intron_start - 4, $intron_end + 3);
-    $boundary_tree->insert($intron, $intron_start - 4, $intron_start + 7);
-    $boundary_tree->insert($intron, $intron_end - 8, $intron_end + 3);
+# SMJS Changed bounds because for very short (eg 1 bp frameshift intron) intron_end-8 will extend
+#      back before the intron, leading to incorrect splice_region_variant calls
+    $boundary_tree->insert($intron, 
+                           $intron_start - 4, 
+                           ($intron_start + 7 < $intron_end + 3 ? $intron_start + 7 : $intron_end + 3));
+    $boundary_tree->insert($intron, 
+                           ($intron_end - 8 > $intron_start - 4 ? $intron_end - 8 : $intron_start - 4), 
+                           $intron_end + 3);
 
     # cache this as it affects whether we should call something as overlapping an exon
     if(abs($intron_end - $intron_start) <= 12) {

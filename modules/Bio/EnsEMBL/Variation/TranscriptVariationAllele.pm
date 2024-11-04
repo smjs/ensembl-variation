@@ -807,7 +807,7 @@ sub codon {
     
     my $shifting_offset = 0;
     my $tr = $tv->transcript;
-  
+
     $shifting_offset = (defined($self->{shift_hash}) && defined($self->{shift_hash}->{shift_length})) ? $self->{shift_hash}->{shift_length} : 0;
 
     my ($tv_tr_start, $tv_tr_end) = ($tv->translation_start, $tv->translation_end);

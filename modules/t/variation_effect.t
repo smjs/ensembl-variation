@@ -34,6 +34,9 @@ BEGIN {
 
 our $DEBUG = 0;
 
+# Had the use_ok already so the next is test number 2 (counting from 1)
+my $test_num = 2;
+
 ## test inline C
 
 # test overlap
@@ -89,6 +92,7 @@ foreach my $c(@coords) {
   
   is($p_res, $exp, "perl overlap $comment");
   is($c_res, $exp, "C    overlap $comment");
+  $test_num+=2;
 }
 
 # test _intron_overlap
@@ -284,6 +288,7 @@ foreach my $c(@coords) {
   
   # is($p_res, $exp, "perl intron_overlap $comment");
   is($c_res, $exp, "C    intron_overlap $comment");
+  $test_num++;
 }
 
 
@@ -1051,6 +1056,281 @@ $transcript_tests->{$tr->stable_id}->{tests} = [
         strand  => -1,
         start   => $cds_end,
         end     => $cds_end,
+        effects => [qw(start_lost)],
+    }, {
+        alleles => 'G',
+        strand  => -1,
+        start   => $cds_end - 1,
+        end     => $cds_end - 1,
+        effects => [qw(start_lost)],
+    }, {
+        alleles => 'C',
+        strand  => -1,
+        start   => $cds_end - 2,
+        end     => $cds_end - 2,
+        effects => [qw(start_lost)],
+    },  {
+        alleles => 'G',
+        strand  => -1,
+        start   => $cds_end - 3,
+        end     => $cds_end - 3,
+        effects => [qw(missense_variant)],
+    }, {
+        alleles => 'GGG',
+        strand  => -1,
+        start   => $cds_end - 2,
+        end     => $cds_end - 3,
+        effects => [qw(inframe_insertion)],
+    }, {
+        alleles => 'GGG',
+        strand  => -1,
+        start   => $cds_end - 1,
+        end     => $cds_end - 2,
+        effects => [qw(start_retained_variant inframe_insertion)],
+    }, {
+        alleles => 'AGG',
+        strand  => -1,
+        start   => $cds_end - 1,
+        end     => $cds_end - 2,
+        no_shift => 0,
+        effects => [qw(start_lost)],
+    }, {
+        alleles => '-',
+        strand  => -1,
+        start   => $cds_end - 5,
+        end     => $cds_end - 3,
+        effects => [qw(inframe_deletion)],
+        pep_alleles => 'L/-',
+    }, {
+        alleles => 'CTT',
+        strand  => -1,
+        start   => $cds_end - 5,
+        end     => $cds_end - 3,
+        effects => [qw(synonymous_variant)],
+        pep_alleles => 'L/L',
+    }, {
+        alleles => 'GATACA',
+        strand  => -1,
+        start   => $cds_end - 8,
+        end     => $cds_end - 3,
+        effects => [qw(missense_variant)],
+        pep_alleles => 'LT/DT',
+    }, {
+        alleles => 'G',
+        strand  => -1,
+        start   => $cds_end - 3,
+        end     => $cds_end - 4,
+        effects => [qw(frameshift_variant)],
+    }, {
+        alleles => 'GT',
+        strand  => -1,
+        start   => $cds_end - 3,
+        end     => $cds_end - 4,
+        effects => [qw(frameshift_variant)],
+    }, {
+        alleles => 'GTAG',
+        strand  => -1,
+        start   => $cds_end - 3,
+        end     => $cds_end - 4,
+        effects => [qw(frameshift_variant)],
+    }, {
+        alleles => '-',
+        strand  => -1,
+        start   => $cds_end - 3,
+        end     => $cds_end - 3,
+        effects => [qw(frameshift_variant)],
+    }, {
+        alleles => '-',
+        strand  => -1,
+        start   => $cds_end - 4,
+        end     => $cds_end - 3,
+        effects => [qw(frameshift_variant)],
+    }, {
+        alleles => '-',
+        strand  => -1,
+        start   => $cds_end - 6,
+        end     => $cds_end - 3,
+        effects => [qw(frameshift_variant)],
+    }, {
+        alleles => 'G',
+        strand  => -1,
+        start   => $cds_start + 2,
+        end     => $cds_start + 2,
+        effects => [qw(stop_lost)],
+    }, {
+        alleles => 'A',
+        strand  => -1,
+        start   => $cds_start + 1,
+        end     => $cds_start + 1,
+        effects => [qw(stop_retained_variant)],
+    }, {
+        alleles => 'C',
+        strand  => -1,
+        start   => $cds_start,
+        end     => $cds_start,
+        effects => [qw(stop_lost)],
+    }, {
+        alleles => 'AAG',
+        strand  => -1,
+        start   => $cds_start + 2,
+        end     => $cds_start + 1,
+        effects => [qw(inframe_insertion stop_retained_variant)],
+    }, {
+        alleles => '-',
+        strand  => -1,
+        start   => $cds_start,
+        end     => $cds_start + 2,
+        no_shift => 0,
+        effects => [qw(3_prime_UTR_variant stop_lost)], 
+        ## changed for shifting code. Different result is given here than in regular VEP because the transcript
+        ## used for the tests is no longer in the gene set, and has the cds_end_NF attribute attached, preventing
+        ## overlap_stop_codon from correctly flagging. Test will be updated.
+    }, {
+        alleles => 'TAA',
+        strand  => -1,
+        start   => $cds_start,
+        end     => $cds_start + 2,
+        effects => [qw(stop_retained_variant)],
+    }, {
+        alleles => 'GGG',
+        strand  => -1,
+        start   => $cds_start,
+        end     => $cds_start + 2,
+        effects => [qw(stop_lost)],
+    }, {
+        comment => 'a wierd allele string',
+        alleles => 'HGMD_MUTATION',
+        start   => $cds_start + 10,
+        end     => $cds_start + 11,
+        effects => [qw(coding_sequence_variant)],
+    }, {
+        comment => 'an ambiguous allele string',
+        alleles => 'W',
+        start   => $cds_start + 10,
+        end     => $cds_start + 10,
+        effects => [qw(coding_sequence_variant)],
+    }, {
+        comment => 'an ambiguous insertion',
+        alleles => 'W',
+        start   => $cds_start + 10,
+        end     => $cds_start + 9,
+        effects => [qw(frameshift_variant)],
+    }, {
+        comment => 'a specified length insertion',
+        alleles => '2 BP INSERTION',
+        start   => $cds_start + 10,
+        end     => $cds_start + 9,
+        effects => [qw(frameshift_variant)],
+    }, {
+        comment => 'an inframe specified length insertion',
+        alleles => '3 BP INSERTION',
+        start   => $cds_start + 10,
+        end     => $cds_start + 9,
+        effects => [qw(coding_sequence_variant)],
+    }, {
+        comment => 'delete the last codon of an exon',
+        alleles => '-',
+        start   => $intron_end + 1,
+        end     => $intron_end + 3,
+        effects => [qw(inframe_deletion splice_region_variant)],
+    }, 
+
+
+    # check the complex calls
+    
+    {
+        alleles => '-',
+        start   => $intron_end - 2,
+        end     => $intron_end + 3,
+        effects => [qw(splice_donor_variant splice_donor_region_variant coding_sequence_variant intron_variant)],
+    }, {
+        alleles => '-',
+        start   => $intron_start - 3,
+        end     => $intron_start + 2,
+        effects => [qw( splice_acceptor_variant coding_sequence_variant intron_variant)],
+    }, {
+        alleles => '-',
+        start   => $cds_end - 2,
+        end     => $cds_end + 3,
+        effects => [qw( 5_prime_UTR_variant start_lost)],
+    },  {
+        alleles => '-',
+        start   => $cds_start - 3,
+        end     => $cds_start + 2,
+        effects => [qw( 3_prime_UTR_variant stop_lost)],
+    },  
+
+
+];
+
+####################################################################################
+
+# now do the same for a reverse strand transcript with cds_start_NF and cds_end_NF attribs
+# Created artificially
+
+my $tr = $ta->fetch_by_stable_id('ENST00000368312');
+
+my $stable_id_with_nf = $tr->stable_id . " with NF attribs";
+$transcript_tests->{$stable_id_with_nf}->{transcript} = $tr;
+
+my $nf_start_attrib = Bio::EnsEMBL::Attribute->new
+  (-CODE => 'cds_start_NF',
+   -NAME => 'CDS start not found',
+   -VALUE => 1
+  );
+$tr->add_Attributes($nf_start_attrib);
+my $nf_end_attrib = Bio::EnsEMBL::Attribute->new
+  (-CODE => 'cds_end_NF',
+   -NAME => 'CDS end not found',
+   -VALUE => 1
+  );
+$tr->add_Attributes($nf_end_attrib);
+
+$t_start = $tr->seq_region_start;
+$t_end   = $tr->seq_region_end;
+
+$cds_start = $tr->coding_region_start;
+$cds_end   = $tr->coding_region_end;
+
+$first_intron = $tr->get_all_Introns->[0];
+
+$intron_start = $first_intron->seq_region_start;
+$intron_end   = $first_intron->seq_region_end;
+
+$transcript_tests->{$stable_id_with_nf}->{tests} = [
+        
+    # checks for tests near cds boundaries with a transcript with cds_start_NF and cds_end_NF attributes which
+    # change the consequences produced in some cases
+    
+    {
+        start   => $cds_end + 1,
+        end     => $cds_end + 1,
+        effects => [qw(5_prime_UTR_variant)],
+    }, {
+        comment => 'an insertion just before the cds start is UTR',
+        alleles => 'A',
+        start   => $cds_end + 1, 
+        end     => $cds_end,
+        effects => [qw(5_prime_UTR_variant)],
+    }, {
+        comment => 'an insertion just after the cds end is UTR',
+        alleles => 'A',
+        start   => $cds_start, 
+        end     => $cds_start - 1,
+        effects => [qw(3_prime_UTR_variant)],
+    }, {
+        start   => $cds_start - 1,
+        end     => $cds_start - 1,
+        effects => [qw(3_prime_UTR_variant)],
+    },
+
+    # check the CDS 
+
+    {
+        alleles => 'C',
+        strand  => -1,
+        start   => $cds_end,
+        end     => $cds_end,
         effects => [qw(missense_variant)],
     }, {
         alleles => 'G',
@@ -1151,25 +1431,26 @@ $transcript_tests->{$tr->stable_id}->{tests} = [
         strand  => -1,
         start   => $cds_start + 2,
         end     => $cds_start + 2,
-        effects => [qw(stop_lost)],
+        effects => [qw(missense_variant)],
     }, {
         alleles => 'A',
         strand  => -1,
         start   => $cds_start + 1,
         end     => $cds_start + 1,
-        effects => [qw(stop_retained_variant)],
+        effects => [qw(synonymous_variant)],
+# Not sure if stop->stop should be synonymous when cds_end_NF (it's not the terminal codon, but is it coding??)
     }, {
         alleles => 'C',
         strand  => -1,
         start   => $cds_start,
         end     => $cds_start,
-        effects => [qw(stop_lost)],
+        effects => [qw(missense_variant)],
     }, {
         alleles => 'AAG',
         strand  => -1,
         start   => $cds_start + 2,
         end     => $cds_start + 1,
-        effects => [qw(inframe_insertion stop_retained_variant)],
+        effects => [qw(inframe_insertion)],
     }, {
         alleles => '-',
         strand  => -1,
@@ -1177,73 +1458,23 @@ $transcript_tests->{$tr->stable_id}->{tests} = [
         end     => $cds_start + 2,
         no_shift => 0,
         effects => [qw(3_prime_UTR_variant coding_sequence_variant)], 
-        ## changed for shifting code. Different result is given here than in regular VEP because the transcript
-        ## used for the tests is no longer in the gene set, and has the cds_end_NF attribute attached, preventing
-        ## overlap_stop_codon from correctly flagging. Test will be updated.
     }, {
         alleles => 'TAA',
         strand  => -1,
         start   => $cds_start,
         end     => $cds_start + 2,
-        effects => [qw(stop_retained_variant)],
+        effects => [qw(synonymous_variant)],
     }, {
         alleles => 'GGG',
         strand  => -1,
         start   => $cds_start,
         end     => $cds_start + 2,
-        effects => [qw(stop_lost)],
-    }, {
-        comment => 'a wierd allele string',
-        alleles => 'HGMD_MUTATION',
-        start   => $cds_start + 10,
-        end     => $cds_start + 11,
-        effects => [qw(coding_sequence_variant)],
-    }, {
-        comment => 'an ambiguous allele string',
-        alleles => 'W',
-        start   => $cds_start + 10,
-        end     => $cds_start + 10,
-        effects => [qw(coding_sequence_variant)],
-    }, {
-        comment => 'an ambiguous insertion',
-        alleles => 'W',
-        start   => $cds_start + 10,
-        end     => $cds_start + 9,
-        effects => [qw(frameshift_variant)],
-    }, {
-        comment => 'a specified length insertion',
-        alleles => '2 BP INSERTION',
-        start   => $cds_start + 10,
-        end     => $cds_start + 9,
-        effects => [qw(frameshift_variant)],
-    }, {
-        comment => 'an inframe specified length insertion',
-        alleles => '3 BP INSERTION',
-        start   => $cds_start + 10,
-        end     => $cds_start + 9,
-        effects => [qw(coding_sequence_variant)],
-    }, {
-        comment => 'delete the last codon of an exon',
-        alleles => '-',
-        start   => $intron_end + 1,
-        end     => $intron_end + 3,
-        effects => [qw(inframe_deletion splice_region_variant)],
+        effects => [qw(missense_variant)],
     }, 
-
 
     # check the complex calls
     
     {
-        alleles => '-',
-        start   => $intron_end - 2,
-        end     => $intron_end + 3,
-        effects => [qw(splice_donor_variant splice_donor_region_variant coding_sequence_variant intron_variant)],
-    }, {
-        alleles => '-',
-        start   => $intron_start - 3,
-        end     => $intron_start + 2,
-        effects => [qw( splice_acceptor_variant coding_sequence_variant intron_variant)],
-    }, {
         alleles => '-',
         start   => $cds_end - 2,
         end     => $cds_end + 3,
@@ -1490,25 +1721,31 @@ my $tva = $tv->get_all_alternate_BaseVariationFeatureOverlapAlleles();
 
 my $start_retained = Bio::EnsEMBL::Variation::Utils::VariationEffect::start_retained_variant($tva->[0]);
 is($start_retained, 0, 'start_retained works with no $bvfo & $bvf');
+$test_num++;
 
 my $stop_retained = Bio::EnsEMBL::Variation::Utils::VariationEffect::stop_retained($tva->[0]);
 is($stop_retained, undef, 'stop_retained works with no $bvfo & $bvf');
+$test_num++;
 
 my $coding_unknown = Bio::EnsEMBL::Variation::Utils::VariationEffect::coding_unknown($tva->[0]);
 is($coding_unknown, 0, 'coding_unknown works with no $bvfo & $bvf');
+$test_num++;
 
 my $bvfo = $tva->[0]->base_variation_feature_overlap;
 my $bvf = $bvfo->base_variation_feature;
 $bvf->{allele_string} = 'COSMIC_MUTATION';
 my $start_retained_cosmic = Bio::EnsEMBL::Variation::Utils::VariationEffect::start_retained_variant($tva->[0], 0, $bvfo, $bvf);
 is($start_retained_cosmic, 0, 'start_retained retuns 0 with COSMIC');
+$test_num++;
 
 delete($tva->[0]->{_predicate_cache}->{stop_retained});
 my $stop_retained_cosmic = Bio::EnsEMBL::Variation::Utils::VariationEffect::stop_retained($tva->[0], 0, $bvfo, $bvf);
 is($stop_retained_cosmic, 0, 'stop_retained returns 0 with COSMIC');
+$test_num++;
 
 my $coding_unknown_cosmic = Bio::EnsEMBL::Variation::Utils::VariationEffect::coding_unknown($tva->[0], 0, $bvfo, $bvf);
 is($coding_unknown_cosmic, 0, 'coding_unknown returns 0 with COSMIC');
+$test_num++;
 
 my $vf_cosmic = Bio::EnsEMBL::Variation::VariationFeature->new(
     -start          => 20462640,
@@ -1533,19 +1770,19 @@ my $bvf_cosmic = $bvfo_cosmic->base_variation_feature;
 $bvf_cosmic->{tva_shift_hashes} = [];
 $tva_cosmic->[0]->_return_3prime;
 is($tva_cosmic->[0]->{shift_hash}, undef, 'COSMIC_MUTATIONs has no shift hash');
+$test_num++;
 
 $bvf_cosmic->{allele_string} = '-/G';
 $tva_cosmic->[0]->{allele_string} = '-/G';
 $tva_cosmic->[0]->_return_3prime;
 is(defined($tva_cosmic->[0]->{shift_hash}), 1, 'non-COSMIC_MUTATIONs has shift hash');
-
-my $test_count = 1;
+$test_num++;
 
 my $def_strand  = 1;
 
 my $reverse = 0;
 
-for my $stable_id (keys %$transcript_tests) {
+for my $stable_id (sort keys %$transcript_tests) {
     
     my $tran = $transcript_tests->{$stable_id}->{transcript};
 
@@ -1575,7 +1812,7 @@ for my $stable_id (keys %$transcript_tests) {
             -strand         => $test->{strand},
             -slice          => $tran->slice,
             -allele_string  => $ref.'/'.$test->{alleles},
-            -variation_name => 'test'.$test_count,
+            -variation_name => 'test'.$test_num,
         );
 
         my $tv = Bio::EnsEMBL::Variation::TranscriptVariation->new(
@@ -1584,9 +1821,9 @@ for my $stable_id (keys %$transcript_tests) {
             -no_shift		=> $no_shift,
 	);
 
-        warn "# alleles: $allele_string\n";
-        warn '# codons: ', $tv->codons, "\n" if $tv->codons;
-        warn '# peptides: ', $tv->pep_allele_string, "\n" if $tv->pep_allele_string;
+        #warn "# alleles: $allele_string\n";
+        #warn '# codons: ', $tv->codons, "\n" if $tv->codons;
+        #warn '# peptides: ', $tv->pep_allele_string, "\n" if $tv->pep_allele_string;
 
         my @effects = map {
             map { $_->SO_term } @{ $_->get_all_OverlapConsequences }
@@ -1594,19 +1831,12 @@ for my $stable_id (keys %$transcript_tests) {
 
         my $comment = $test->{comment} || (join ',', @{ $test->{effects} }) || 'no effect';
 
-
         my $strand = $tv->transcript->strand;
 
         # sort so that the order doesn't matter
-        is_deeply( [sort @effects], [sort @{ $test->{effects} }], "VF $test_count (strand $strand): $comment") 
-            || (diag "Actually got: ", explain \@effects, "but expected: ", explain \@{ $test->{effects}} ) ||  
-            print join(",",(sort @{ $test->{effects}} )) ."\tgot\t".  join(",",(sort @effects)) . "\t";
-
-        if($DEBUG ==1){
-          print $tv->hgvs_genomic()->{$test->{alleles}} ."\t" ;
-          print $tv->hgvs_transcript()->{$test->{alleles}} ."\t" if defined  $tv->hgvs_transcript()->{$test->{alleles}};
-          print $tv->hgvs_protein()->{$test->{alleles}} if defined  $tv->hgvs_protein()->{$test->{alleles}};
-          print "\n" ;
+        if (!is_deeply( [sort @effects], [sort @{ $test->{effects} }], "VF $test_num (strand $strand): $comment")) { 
+            diag "For transcript ", $stable_id, " actually got: ", explain \@effects, "but expected: ", explain \@{ $test->{effects}}; 
+            print STDERR "# " . join(",",(sort @{ $test->{effects}} )) ."\tgot\t".  join(",",(sort @effects)) . "\n";
         }
 
         if (my $expected_pep_alleles = $test->{pep_alleles}) {
@@ -1614,10 +1844,20 @@ for my $stable_id (keys %$transcript_tests) {
                 $tv->pep_allele_string, 
                 $expected_pep_alleles, 
                 "peptide allele string is correct (expected $expected_pep_alleles)"
-            ) || die;
+            ) || (diag "Actually got: ", $tv->pep_allele_string , " but expected: ", $expected_pep_alleles );
+            $test_num++;
         }
 
-        $test_count++;
+        # Note: moved these after pep allele check because calling the hgvs methods seems to have
+        #       altered the peptide alleles in one case causing a test failure
+        if($DEBUG ==1){
+          print STDERR "# " . (defined $tv->hgvs_genomic()->{$test->{alleles}} ?  $tv->hgvs_genomic()->{$test->{alleles}} : "") ."\t" ;
+          print STDERR $tv->hgvs_transcript()->{$test->{alleles}} ."\t" if defined  $tv->hgvs_transcript()->{$test->{alleles}};
+          print STDERR $tv->hgvs_protein()->{$test->{alleles}} if defined  $tv->hgvs_protein()->{$test->{alleles}};
+          print STDERR "\n" ;
+        }
+
+        $test_num++;
     }
 }
 
